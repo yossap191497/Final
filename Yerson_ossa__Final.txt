@@ -1,0 +1,65 @@
+plsql.execute <<-SQL
+CREATE OR REPLACE PROCEDURE  CALCULAR_SIMULACION (TASA IN DECIMAL,CUOTAS IN DECIMAL,PRESTAMO IN DECIMAL )
+AS
+N DECIMAL(15,2) := 0;
+D DECIMAL(15,2) :=0;
+SALDO_ACTUAL DECIMAL(15,2) :=0;
+SALDO_CAPITAL DECIMAL(15,2) :=0;
+INTERES_CUOTA DECIMAL(15,2) :=0;
+cuota_mensual DECIMAL(15,2) :=0;
+BEGIN 
+    DELETE FROM AMORTIZACION;
+    dbms_output.put_line('VALOR DEL PRESTAMO: '|| PRESTAMO);
+    dbms_output.put_line('CUOTAS: '|| CUOTAS   );
+    dbms_output.put_line('TASA: '|| TASA);
+    
+    n := (TASA/100) * PRESTAMO;
+    d := 1 - (1 + (TASA/100)) ** (-CUOTAS); 
+    cuota_mensual := n / d;
+    dbms_output.put_line('CUOTA MENSUAL: '|| cuota_mensual);
+    SALDO_ACTUAL := PRESTAMO;
+    FOR I IN 1..CUOTAS LOOP
+        DBMS_OUTPUT.PUT_LINE('i '|| i);
+        INTERES_CUOTA := TASA/100 * SALDO_ACTUAL;
+        SALDO_CAPITAL := cuota_mensual - INTERES_CUOTA;
+        SALDO_ACTUAL:=SALDO_ACTUAL - SALDO_CAPITAL;
+         DBMS_OUTPUT.PUT_LINE('cuota_mensual '|| cuota_mensual || ',INTERES_CUOTA '||INTERES_CUOTA);
+         
+        INSERT INTO AMORTIZACION VALUES(I,cuota_mensual,SALDO_CAPITAL,INTERES_CUOTA,SALDO_ACTUAL);
+    END LOOP;
+END
+SQL
+
+plsql.execute <<-SQL
+CREATE OR REPLACE VIEW PLAN_AMORTIZACION AS 
+select e.*, cast (avg(e.ABONO_INTERES)over (partition by e.CUOTA_MENSUAL) AS decimal(15,2))  as promedio_interes 
+from AMORTIZACION e ;
+SQL
+
+plsql.execute <<-SQL
+CREATE OR REPLACE FUNCTION SEQUENCE_SERIE( INICIO In NUMBER,POS IN NUMBER )
+RETURN NUMBER IS
+   CONT NUMBER :=0;
+   NUMERO NUMBER :=0;
+   NUMERO1 NUMBER :=0;
+   CADENA VARCHAR(255) :='';
+   BEGIN 
+   NUMERO := INICIO;
+    FOR I IN 1..POS-1 LOOP
+        CADENA := TO_CHAR(NUMERO) ;
+        NUMERO1:=0; 
+        FOR J IN 1..LENGTH(CADENA) LOOP
+            SELECT SUBSTR(CADENA,(J),1) "Substring" into CADENA FROM DUAL;
+             DBMS_OUTPUT.PUT_LINE(cadena);
+             IF CADENA !='0' THEN
+                NUMERO1 :=NUMERO1 +TO_NUMBER(cadena);
+             END IF;
+             
+         end loop;
+         NUMERO :=NUMERO +NUMERO1;
+         DBMS_OUTPUT.PUT_LINE('NUMERO ' ||NUMERO);
+    end loop;
+        
+    RETURN NUMERO;
+   END
+SQL
